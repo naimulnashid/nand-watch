@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Everything that touches Windows: the drive IOCTLs, WMI, the event log,
+         Task Scheduler and notifications. Kept apart from NandWatch.Core so the
+         parsers and maths stay testable anywhere. The Windows 10 2004 SDK
+         version brings the WinRT projection for toast notifications; the
+         collector and the CLI follow it, since a project cannot reference one
+         that targets a newer Windows. -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <RootNamespace>NandWatch.Windows</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Diagnostics.EventLog" Version="10.0.13" />
+    <PackageReference Include="System.Management" Version="10.0.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NandWatch.Core\NandWatch.Core.csproj" />
+  </ItemGroup>
+</Project>

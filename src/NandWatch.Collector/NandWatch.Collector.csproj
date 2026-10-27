@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- WinExe: the scheduled task runs this hourly as the signed-in user, and
+         a console exe would flash a window each time. It has no window of its
+         own either; it reads, writes and exits. -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <RootNamespace>NandWatch.Collector</RootNamespace>
+    <AssemblyName>NandWatchCollector</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NandWatch.Windows\NandWatch.Windows.csproj" />
+  </ItemGroup>
+</Project>

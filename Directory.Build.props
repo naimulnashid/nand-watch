@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <Company>NAND Watch</Company>
+    <Product>NAND Watch</Product>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <!-- The Windows projects also compile on Linux (CI, cloud sessions), so a
+       change there is at least type-checked off Windows. They only RUN on
+       Windows. Harmless on Windows itself. -->
+  <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+</Project>

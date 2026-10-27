@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    # Nothing needs Windows to BUILD: NandWatch.Core is plain .NET, the
+    # Windows projects compile anywhere (EnableWindowsTargeting), and the WinUI
+    # app has no XAML and stands in for mt.exe off Windows
+    # (tools/build/mt-shim.sh). A compile check only: nothing built here runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        run: dotnet build NandWatch.slnx -c Release
+
+      - name: Test
+        run: dotnet test --project tests/NandWatch.Core.Tests/NandWatch.Core.Tests.csproj -c Release --no-build

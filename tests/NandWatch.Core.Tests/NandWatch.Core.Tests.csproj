@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>NandWatch.Core.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Runs on Microsoft.Testing.Platform (see global.json), which .NET 10's
+         `dotnet test` requires; no VSTest adapter needed. -->
+    <PackageReference Include="xunit.v3" Version="4.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\NandWatch.Core\NandWatch.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The RST reader's request builder is pure byte layout: compiled here
+         too, so its bytes are pinned by a test on any OS. -->
+    <Compile Include="..\..\src\NandWatch.RstReader\RstRequest.cs" Link="Linked\RstRequest.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Onyx\tokens.resolved.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

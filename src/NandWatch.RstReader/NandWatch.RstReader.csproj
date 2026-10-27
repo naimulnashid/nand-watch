@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- The one elevated piece: run by the "NAND Watch RST Reader" task as
+         SYSTEM, from %ProgramFiles%\NAND Watch\, to read the health log of a
+         drive that Intel RST will not pass on to a standard user. It sends one
+         NVMe command, Get Log Page 02h, and nothing else (RstRequest.cs, and
+         ReadOnlyGuardTests). It references no other project and no package:
+         the less an elevated process loads, the less there is to trust. -->
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>NandWatch.RstReader</RootNamespace>
+    <AssemblyName>NandWatchRstReader</AssemblyName>
+    <!-- One file in Program Files, with the runtime inside it. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- No startup hooks, whatever the environment says. The task runs as
+         SYSTEM, whose environment only administrators can change, but an
+         elevated process should not depend on that alone. -->
+    <StartupHookSupport>false</StartupHookSupport>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+</Project>

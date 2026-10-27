@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NandWatch.App/NandWatch.App.csproj" />
+    <Project Path="src/NandWatch.Cli/NandWatch.Cli.csproj" />
+    <Project Path="src/NandWatch.Collector/NandWatch.Collector.csproj" />
+    <Project Path="src/NandWatch.Core/NandWatch.Core.csproj" />
+    <Project Path="src/NandWatch.RstReader/NandWatch.RstReader.csproj" />
+    <Project Path="src/NandWatch.Windows/NandWatch.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NandWatch.Core.Tests/NandWatch.Core.Tests.csproj" />
+  </Folder>
+</Solution>

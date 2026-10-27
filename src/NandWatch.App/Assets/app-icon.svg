@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="NAND Watch">
+  <!-- True-black tile so the mark keeps its own ground on a light taskbar. -->
+  <rect width="32" height="32" rx="7" fill="#000000"/>
+  <rect x="0.5" y="0.5" width="31" height="31" rx="6.5" fill="none" stroke="#1e1e22"/>
+
+  <!-- A flash chip with a fill level: the life left in it. Data Usage is also
+       Tech Blue and sits in the same taskbar, so the marks differ in SHAPE
+       (a square with pins, not three bars). Screen Time's ring rule applies:
+       outlines thinner than 2 units grey out at 16px, and the pins are pale
+       rather than a second blue so they read as pins, not as a halo. -->
+  <rect x="3" y="9"  width="4.5" height="2.6" rx="1.1" fill="#c9d6ea"/>
+  <rect x="3" y="14.7" width="4.5" height="2.6" rx="1.1" fill="#c9d6ea"/>
+  <rect x="3" y="20.4" width="4.5" height="2.6" rx="1.1" fill="#c9d6ea"/>
+  <rect x="24.5" y="9"  width="4.5" height="2.6" rx="1.1" fill="#c9d6ea"/>
+  <rect x="24.5" y="14.7" width="4.5" height="2.6" rx="1.1" fill="#c9d6ea"/>
+  <rect x="24.5" y="20.4" width="4.5" height="2.6" rx="1.1" fill="#c9d6ea"/>
+  <rect x="8" y="6" width="16" height="20" rx="3" fill="#0b1a30" stroke="#2f80ed" stroke-width="2.2"/>
+  <!-- The level: a dim track with the remaining part bright, filled from the bottom. -->
+  <rect x="11.5" y="9.5" width="9" height="13" rx="1.6" fill="#12325c"/>
+  <rect x="11.5" y="14" width="9" height="8.5" rx="1.6" fill="#4d97ff"/>
+</svg>

@@ -1,0 +1,25 @@
+# Build output
+bin/
+obj/
+artifacts/
+publish/
+TestResults/
+*.user
+.vs/
+
+# Health data must never be committed: it carries drive serial numbers and a
+# record of how this machine was used. The database, probe output, raw log
+# pages, smartctl dumps and logs all stay out.
+*.db
+*.db-wal
+*.db-shm
+*.bin
+*.csv
+*.log
+probe-out/
+report.json
+demo-data/
+
+# Screenshots taken while developing can show real usage. Anchored: the
+# README's own, made from invented data, will live in docs/screenshots/.
+/screenshots/
