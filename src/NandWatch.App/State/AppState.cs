@@ -10,6 +10,8 @@ namespace NandWatch.App.State;
 /// What the window knows about the history: where it is, whether it holds
 /// anything, and when it changed. Pages read the database themselves
 /// (IPage.Load, off the UI thread); this only says when to rebuild them.
+/// The tray process has one of its own (<see cref="TrayProcess"/>), so
+/// nothing here may create a WinUI object.
 /// </summary>
 /// <remarks>
 /// <b>Live refresh</b> (Data Usage Native's): the live database's files are
@@ -116,11 +118,20 @@ public sealed class AppState : IDisposable
             NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName,
             EnableRaisingEvents = true,
         };
-        void Poke(object? sender, FileSystemEventArgs e) => ui.TryEnqueue(() =>
+        void Poke(object? sender, FileSystemEventArgs e)
         {
-            debounce.Stop();
-            debounce.Start();
-        });
+            // Not the -shm file: every reader of a WAL database writes it,
+            // this process's own signature read included, so each read
+            // scheduled the next, one every three seconds for as long as the
+            // app ran (found in Screen Time Native 2026-11-11, which has the
+            // same watcher from Data Usage Native).
+            if (e.Name?.EndsWith("-shm", StringComparison.OrdinalIgnoreCase) == true) return;
+            ui.TryEnqueue(() =>
+            {
+                debounce.Stop();
+                debounce.Start();
+            });
+        }
         _watcher.Changed += Poke;
         _watcher.Created += Poke;
     }

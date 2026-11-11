@@ -6,7 +6,8 @@ namespace NandWatch.App.State;
 /// <summary>
 /// The notification-area icon, when the owner turns it on (off by default):
 /// each drive's status in its tooltip, a click to open, a menu with Sync now.
-/// Notifications do not depend on it; the collector shows its own.
+/// It belongs to the tray process (<see cref="TrayProcess"/>), which outlives
+/// the window. Notifications do not depend on it; the collector shows its own.
 /// </summary>
 public sealed class TrayHost : IDisposable
 {
@@ -16,7 +17,11 @@ public sealed class TrayHost : IDisposable
     public TrayHost(Action<Action> onUi, Action open, Action syncNow, Action exit)
     {
         _icon = new Icon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"), 16, 16);
-        _tray = new TrayIconWithContextMenu("NandWatch.Tray")
+        // The id is per exe path. Windows binds a tray icon's id to the exe
+        // that first registered it and silently refuses it from any other
+        // (HKCU\Control Panel\NotifyIconSettings): with a fixed id, one Debug
+        // run takes the installed app's icon away. The siblings' trap.
+        _tray = new TrayIconWithContextMenu($"NandWatch.Tray|{Environment.ProcessPath}")
         {
             Icon = _icon.Handle,
             ToolTip = "NAND Watch",

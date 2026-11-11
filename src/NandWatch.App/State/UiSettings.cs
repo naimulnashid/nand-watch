@@ -45,10 +45,18 @@ public sealed class UiSettings
         return new UiSettings();
     }
 
-    public void Save()
+    /// <param name="keepStallMark">
+    /// The file has two writers, the window and the tray, and either may have
+    /// announced a stall since this copy was loaded: a save takes
+    /// <see cref="NotifiedStallSince"/> from the file, or it would write back
+    /// the old mark and the stall would be announced again. Only
+    /// <see cref="Stall.Check"/> writes the mark itself.
+    /// </param>
+    public void Save(bool keepStallMark = true)
     {
         try
         {
+            if (keepStallMark) NotifiedStallSince = Load().NotifiedStallSince;
             Directory.CreateDirectory(AppPaths.LocalDir);
             File.WriteAllText(FilePath, JsonSerializer.Serialize(this, Options));
         }

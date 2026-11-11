@@ -38,9 +38,6 @@ public sealed class MainWindow : Window
     private Grid _frame = null!;
     private Border _topBar = null!;
 
-    private TrayHost? _tray;
-    private bool _inTray;
-    private bool _launchedToTray;
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _stallTimer;
 
     private Route _route = new(PageKind.Overview);
@@ -72,103 +69,27 @@ public sealed class MainWindow : Window
 
         state.Changed += () =>
         {
-            _ = UpdateTrayAsync();
-            // In the tray there is no page to rebuild: it was dropped to free its memory.
-            if (_inTray) return;
             UpdateChrome();
             Rebuild(keepScroll: true);
         };
         UpdateChrome();
 
-        // Closing with the tray on leaves the app there; without it, closing exits.
-        AppWindow.Closing += (_, e) =>
-        {
-            if (_tray is null) return;
-            e.Cancel = true;
-            EnterTray();
-        };
+        // Closing ends this process. With the tray on, the tray process stays
+        // (see State/TrayProcess); without it, nothing does.
         state.Watch(DispatcherQueue);
         _stallTimer = DispatcherQueue.CreateTimer();
         // On a clock only, never on opening: the app's own first read lands
         // first, and a PC that was simply off for days has not stalled.
         _stallTimer.Interval = TimeSpan.FromMinutes(10);
-        _stallTimer.Tick += (_, _) => CheckStall();
+        _stallTimer.Tick += (_, _) => Stall.Check(_state.LastOk);
         _stallTimer.Start();
     }
 
-    /* --------------------------------------------------------------- Tray */
+    /// <summary>Raised when "Keep in the tray when closed" was changed: the tray is another process, started or told by the app.</summary>
+    public event Action? TrayChoiceChanged;
 
-    /// <summary>Started at sign-in with --tray: the tray only, no window until it is opened.</summary>
-    public async Task StartInTrayAsync()
-    {
-        _launchedToTray = true;
-        ApplyTray();
-        _inTray = true;
-        await _state.ReloadAsync();
-    }
-
-    /// <summary>The tray exists while the owner wants it (Settings) or the app was started into it.</summary>
-    private void ApplyTray()
-    {
-        var want = _settings.CloseToTray || _launchedToTray;
-        if (want && _tray is null)
-        {
-            try
-            {
-                _tray = new TrayHost(a => DispatcherQueue.TryEnqueue(() => a()), ShowAndActivate, () => _ = SyncNowAsync(), Exit);
-                _ = UpdateTrayAsync();
-            }
-            catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
-            {
-                _tray = null;
-            }
-        }
-        else if (!want && _tray is not null)
-        {
-            _tray.Dispose();
-            _tray = null;
-        }
-    }
-
-    private async Task UpdateTrayAsync()
-    {
-        if (_tray is null) return;
-        try { _tray?.SetToolTip(await _state.TrayLinesAsync()); }
-        catch (Exception ex) when (ex is Microsoft.Data.Sqlite.SqliteException or IOException) { }
-    }
-
-    /// <summary>Hides the window and drops the page, so the tray holds as little as it can.</summary>
-    private void EnterTray()
-    {
-        _inTray = true;
-        AppWindow.Hide();
-        _pageHost.Content = null;
-        _page = null;
-        GC.Collect();
-    }
-
-    private void Exit()
-    {
-        _tray?.Dispose();
-        _tray = null;
-        _state.Dispose();
-        _exit();
-    }
-
-    /// <summary>
-    /// A stall, announced once: no good run for six hours while the app is
-    /// running. The hourly task catches up after sleep, so six hours means it
-    /// is not running at all. The collector cannot say this itself.
-    /// </summary>
-    private void CheckStall()
-    {
-        if (!_settings.Notify || _state.LastOk is not { } last || DateTimeOffset.UtcNow - last < TimeSpan.FromHours(6)) return;
-        if (_settings.NotifiedStallSince == last) return;
-        _settings.NotifiedStallSince = last;
-        _settings.Save();
-        NandWatch.Windows.Notify.Toasts.Show($"NAND Watch has not read the drives for {(int)(DateTimeOffset.UtcNow - last).TotalHours} hours",
-            "The hourly task may have stopped. Open Sync Status to see why.");
-    }
+    /// <summary>Exit, from the Settings menu: the tray process goes too.</summary>
+    private void Exit() => _exit();
 
     /* ------------------------------------------------------------- Window */
 
@@ -242,18 +163,20 @@ public sealed class MainWindow : Window
         }
     }
 
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hwnd);
+
+    /// <summary>
+    /// Brings the window forward: asked for again while already open (the
+    /// tray icon, a toast's click, a second launch). Activate alone leaves it
+    /// behind whatever is in front when the request came from another process.
+    /// </summary>
     public void ShowAndActivate()
     {
-        var wasInTray = _inTray;
-        _inTray = false;
         AppWindow.Show();
         Maximize();
         Activate();
-        if (wasInTray)
-        {
-            UpdateChrome();
-            Rebuild(keepScroll: false);
-        }
+        SetForegroundWindow(WinRT.Interop.WindowNative.GetWindowHandle(this));
     }
 
     /// <summary>The window always opens maximised, as the siblings' do.</summary>
@@ -504,8 +427,7 @@ public sealed class MainWindow : Window
         _syncText.Foreground = ok ? Palette.TextMutedBrush : Palette.WarnBrush;
         var detail = result is null ? "No data folder is set." : $"{result.Status}: {result.DrivesRead} drive(s), backup {result.Backup ?? "not due"}, {result.DurationMs} ms. {string.Join(" ", result.Notes)}";
         ToolTipService.SetToolTip(_sync, Ui.TipContent(detail));
-        // A dialog needs the window: from the tray, the failure waits in Sync Status.
-        if (!ok && !_inTray) await Shell.ShowMessage(this, "Sync failed", detail);
+        if (!ok) await Shell.ShowMessage(this, "Sync failed", detail);
         var timer = DispatcherQueue.CreateTimer();
         timer.Interval = TimeSpan.FromSeconds(4);
         timer.IsRepeating = false;
@@ -634,7 +556,7 @@ public sealed class MainWindow : Window
         {
             _settings.CloseToTray = tray.IsChecked;
             _settings.Save();
-            ApplyTray();
+            TrayChoiceChanged?.Invoke();
         };
         var startup = new ToggleMenuFlyoutItem { Text = "Start in the tray at sign-in", Icon = new FontIcon { Glyph = "\uE768" } };
         startup.Click += (_, _) =>

@@ -7,7 +7,7 @@
     <InvariantGlobalization>false</InvariantGlobalization>
     <Company>NAND Watch</Company>
     <Product>NAND Watch</Product>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
   </PropertyGroup>
 
   <!-- The Windows projects also compile on Linux (CI, cloud sessions), so a
