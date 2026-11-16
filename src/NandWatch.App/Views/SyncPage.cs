@@ -13,7 +13,8 @@ namespace NandWatch.App.Views;
 
 /// <param name="Task">The hourly task as Task Scheduler sees it; null when it could not be asked.</param>
 public sealed record SyncData(HistorySummary Summary, IReadOnlyList<RunRow> Runs, IReadOnlyList<RefusalRow> Refusals, string DataDir,
-    TaskInfo? Task = null, IReadOnlyList<AlertRow>? Alerts = null, TaskInfo? RstTask = null, DateTimeOffset? RstReport = null);
+    TaskInfo? Task = null, IReadOnlyList<AlertRow>? Alerts = null, TaskInfo? RstTask = null, DateTimeOffset? RstReport = null,
+    int RunTotal = 0, int AlertTotal = 0);
 
 /// <summary>
 /// Whether collection is actually running: the last good run, the next, the
@@ -22,15 +23,41 @@ public sealed record SyncData(HistorySummary Summary, IReadOnlyList<RunRow> Runs
 /// </summary>
 public sealed class SyncPage(PageContext ctx) : IPage
 {
+    /// <summary>A run log may show 25 rows a page; every other table shows <see cref="Pages.PageSize"/> (rulebook: components, "Pager").</summary>
+    private const int RunsPerPage = 25;
+
     private SyncData? _data;
     private DateTimeOffset _now = DateTimeOffset.UtcNow;
+    private int _runsPage = 1, _alertsPage = 1;
 
     public void Load()
     {
         _now = DateTimeOffset.UtcNow;
         using var conn = HealthDb.OpenRead(ctx.State.DatabasePath!);
-        _data = new SyncData(HealthQueries.Summary(conn), HealthQueries.Runs(conn, 48), HealthQueries.Refusals(conn), ctx.State.DataDir!,
-            CollectorTask.Query(), HealthQueries.Alerts(conn, 30), CollectorTask.Query(CollectorTask.RstReaderName), RstReportTime());
+        // Clamped here, so a page past the end (the history was restored from
+        // an older backup) shows the last one.
+        var runTotal = HealthQueries.RunCount(conn);
+        var alertTotal = HealthQueries.AlertCount(conn);
+        _runsPage = Pages.Clamp(_runsPage, Pages.Count(runTotal, RunsPerPage));
+        _alertsPage = Pages.Clamp(_alertsPage, Pages.Count(alertTotal));
+        _data = new SyncData(HealthQueries.Summary(conn), HealthQueries.Runs(conn, RunsPerPage, (_runsPage - 1) * RunsPerPage), HealthQueries.Refusals(conn), ctx.State.DataDir!,
+            CollectorTask.Query(), HealthQueries.Alerts(conn, Pages.PageSize, (_alertsPage - 1) * Pages.PageSize), CollectorTask.Query(CollectorTask.RstReaderName), RstReportTime(),
+            runTotal, alertTotal);
+    }
+
+    /// <summary>A table with its pager under it. A press loads that page of rows and redraws in place.</summary>
+    private StackPanel Paged(UIElement rows, int page, int total, string noun, int pageSize, Action<int> set)
+    {
+        var pager = new Pager(page, total, noun, PageOrder.Time, pageSize);
+        pager.PageChanged += to =>
+        {
+            set(to);
+            ctx.Redraw();
+        };
+        var body = new StackPanel();
+        body.Children.Add(rows);
+        body.Children.Add(pager);
+        return body;
     }
 
     public void Placeholder()
@@ -81,8 +108,8 @@ public sealed class SyncPage(PageContext ctx) : IPage
 
         // Alerts before the runs: the run table is long, and an alert is what needs seeing.
         page.Children.Add(Ui.Panel("Alerts", "What the collector raised, newest first, whether or not notifications are on. Red means something broke; amber is a warning.",
-            null, AlertsList(d.Alerts ?? [], zone)));
-        page.Children.Add(Ui.Panel("Runs", null, null, RunsTable(d.Runs, zone)));
+            null, d.AlertTotal == 0 ? AlertsList([], zone) : Paged(AlertsList(d.Alerts ?? [], zone), _alertsPage, d.AlertTotal, "alerts", Pages.PageSize, to => _alertsPage = to)));
+        page.Children.Add(Ui.Panel("Runs", null, null, Paged(RunsTable(d.Runs, zone), _runsPage, d.RunTotal, "runs", RunsPerPage, to => _runsPage = to)));
         if (d.RstTask is { Exists: true } || d.Refusals.Any(r => r.Request == Windows.Collect.Collector.HealthRequest))
             page.Children.Add(RstPanel(d, zone));
         if (d.Refusals.Count > 0)
@@ -192,7 +219,7 @@ public sealed class SyncPage(PageContext ctx) : IPage
                 notes,
             ]);
         }
-        return table.Build();
+        return table.BuildAbovePager();
     }
 
     private UIElement RefusalsTable(IReadOnlyList<RefusalRow> refusals, TimeZoneInfo zone)

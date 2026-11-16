@@ -1,4 +1,7 @@
 #:package Svg.Skia@5.2.3
+// Never published, so no native AOT: a file-based program asks for it by default, and its compiler
+// package then fails the restore whenever it carries an advisory (NU1903, 2026-11-16).
+#:property PublishAot=false
 // Converts PNG screenshots to WebP for the README. AI Usage Native's.
 //
 //   dotnet run tools/to-webp.cs -- <in.png> <out.webp> [<in.png> <out.webp> ...]

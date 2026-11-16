@@ -45,6 +45,22 @@ public sealed class UiSettings
         return new UiSettings();
     }
 
+    /// <summary>The notification toggle's words, in the tray menu and in the window's Settings.</summary>
+    public const string NotifyLabel = "Notify when a drive needs attention";
+
+    /// <summary>
+    /// Changes one thing in the file as it is now, not as this process loaded
+    /// it: the window and the tray both write it, and each would otherwise
+    /// write back the other's toggle as it was.
+    /// </summary>
+    public static UiSettings Change(Action<UiSettings> edit)
+    {
+        var current = Load();
+        edit(current);
+        current.Save(keepStallMark: false);
+        return current;
+    }
+
     /// <param name="keepStallMark">
     /// The file has two writers, the window and the tray, and either may have
     /// announced a stall since this copy was loaded: a save takes

@@ -47,4 +47,7 @@ public interface IPage
     /// <see cref="Build"/> can draw its loading skeleton. No database access.
     /// </summary>
     void Placeholder();
+
+    /// <summary>Where the page's "←" link and the Backspace key go; null for a top-level page.</summary>
+    Route? Back => null;
 }

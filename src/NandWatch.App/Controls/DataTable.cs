@@ -31,6 +31,7 @@ public sealed class DataTable
     private readonly Grid _grid = new();
     private readonly List<Column> _columns;
     private int _row;
+    private Border? _lastWash;
 
     public DataTable(IReadOnlyList<Column> columns)
     {
@@ -113,6 +114,7 @@ public sealed class DataTable
         Grid.SetRow(wash, row);
         Grid.SetColumnSpan(wash, _columns.Count);
         _grid.Children.Add(wash);
+        _lastWash = wash;
         void Lit(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e) => wash.Background = Palette.SurfaceHoverBrush;
         void Unlit(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e) => wash.Background = Palette.TransparentBrush;
         wash.PointerEntered += Lit;
@@ -144,4 +146,14 @@ public sealed class DataTable
     /// a single long one put a scroll bar under the whole table.
     /// </summary>
     public Grid Build() => _grid;
+
+    /// <summary>
+    /// The table for a pager to sit under: without the rule below its last
+    /// row, because the pager draws that line itself and two would show.
+    /// </summary>
+    public Grid BuildAbovePager()
+    {
+        if (_lastWash is { } last) last.BorderThickness = new Thickness(0, last.BorderThickness.Top, 0, 0);
+        return _grid;
+    }
 }

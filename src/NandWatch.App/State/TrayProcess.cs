@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
+using NandWatch.Core.View;
 
 namespace NandWatch.App.State;
 
@@ -32,13 +33,27 @@ public sealed class TrayProcess : IDisposable
     private readonly TrayHost _tray;
     private readonly DispatcherQueueTimer _stallTimer;
     private readonly CancellationTokenSource _stopping = new();
+    // WinRT, not WinUI: reading Windows' app mode loads no XAML.
+    private readonly global::Windows.UI.ViewManagement.UISettings _systemColors = new();
     private bool _syncing;
 
     public TrayProcess(DispatcherQueue ui, bool forWindow)
     {
         _ui = ui;
         _forWindow = forWindow;
-        _tray = new TrayHost(action => ui.TryEnqueue(() => action()), OpenWindow, SyncNow, () => Exit(closeWindow: true));
+        // Before the icon exists: its menu window takes the theme as it is made.
+        ApplyMenuTheme();
+        // "Use Windows setting" follows Windows while the tray runs, not only at its start.
+        _systemColors.ColorValuesChanged += (_, _) => ui.TryEnqueue(ApplyMenuTheme);
+
+        // The order and the shared wording are Onyx's (View/TrayMenu); this app
+        // supplies its name, its one action and its notification toggle.
+        var spec = new TrayMenuSpec("NAND Watch", OpenWindow, () => Exit(closeWindow: true), () => StartupRegistration.IsEnabled, ToggleStartAtLogin)
+        {
+            MainAction = ("Sync now", SyncNow),
+            Toggles = [TrayItem.Check(UiSettings.NotifyLabel, () => UiSettings.Change(s => s.Notify = !s.Notify), () => UiSettings.Load().Notify)],
+        };
+        _tray = new TrayHost("NandWatch.Tray", spec, action => ui.TryEnqueue(() => action()));
         _state.Changed += () => _ = UpdateToolTipAsync();
         _state.Watch(ui);
 
@@ -69,11 +84,25 @@ public sealed class TrayProcess : IDisposable
         }
     }
 
+    private void ApplyMenuTheme() => MenuTheme.Apply(MenuTheme.IsLight(UiSettings.Load().Theme, _systemColors));
+
+    private static void ToggleStartAtLogin()
+    {
+        try
+        {
+            StartupRegistration.Set(!StartupRegistration.IsEnabled);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+        {
+            // The tick is read back from the registry, so it shows what is true.
+        }
+    }
+
     private async Task UpdateToolTipAsync()
     {
         try
         {
-            _tray.SetToolTip(await _state.TrayLinesAsync());
+            _tray.ShowStatus([.. await _state.TrayLinesAsync()]);
         }
         catch (Exception ex) when (ex is Microsoft.Data.Sqlite.SqliteException or IOException)
         {
@@ -90,6 +119,9 @@ public sealed class TrayProcess : IDisposable
                     Exit(closeWindow: false);
                     return;
                 }
+                // A toggle or the theme may have been changed in the window.
+                _tray.SyncChecks();
+                ApplyMenuTheme();
                 // The setup screen may have chosen the data folder since.
                 _state.Open();
                 _state.Watch(_ui);

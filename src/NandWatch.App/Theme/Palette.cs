@@ -100,6 +100,8 @@ public static class Palette
         IsLight = light;
         _t = light ? Onyx.Light : Onyx.Dark;
         Paint();
+        // The copied Onyx controls (the pager) paint from OnyxTheme: one switch moves both.
+        OnyxTheme.Apply(light);
         Changed?.Invoke();
     }
 

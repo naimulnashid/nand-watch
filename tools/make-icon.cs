@@ -1,4 +1,7 @@
 #:package Svg.Skia@5.2.3
+// Never published, so no native AOT: a file-based program asks for it by default, and its compiler
+// package then fails the restore whenever it carries an advisory (NU1903, 2026-11-16).
+#:property PublishAot=false
 // Regenerates src/NandWatch.App/Assets/app.ico, and the 64 px app-icon.png the
 // title bar shows, from src/NandWatch.App/Assets/app-icon.svg.
 //

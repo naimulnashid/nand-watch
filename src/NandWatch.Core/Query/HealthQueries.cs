@@ -249,10 +249,14 @@ public static class HealthQueries
         HealthDb.Scalar<string?>(conn,
             "SELECT (SELECT COUNT(*) FROM readings) || '|' || COALESCE((SELECT id || status FROM runs ORDER BY id DESC LIMIT 1), '');") ?? "";
 
-    public static IReadOnlyList<RunRow> Runs(SqliteConnection conn, int limit)
+    /// <summary>Every run the history holds: what the run log's pager counts.</summary>
+    public static int RunCount(SqliteConnection conn) => (int)HealthDb.Scalar<long>(conn, "SELECT COUNT(*) FROM runs;");
+
+    /// <summary>Runs, newest first: <paramref name="limit"/> of them after skipping <paramref name="offset"/>.</summary>
+    public static IReadOnlyList<RunRow> Runs(SqliteConnection conn, int limit, int offset = 0)
     {
         var rows = new List<RunRow>();
-        using var cmd = HealthDb.Command(conn, "SELECT id, started_utc, trigger, status, drives_read, backup, duration_ms, error FROM runs ORDER BY id DESC LIMIT $n;", ("$n", limit));
+        using var cmd = HealthDb.Command(conn, "SELECT id, started_utc, trigger, status, drives_read, backup, duration_ms, error FROM runs ORDER BY id DESC LIMIT $n OFFSET $o;", ("$n", limit), ("$o", offset));
         using var r = cmd.ExecuteReader();
         while (r.Read())
             rows.Add(new RunRow(r.GetInt64(0), HealthDb.ParseIso(r.GetString(1)), r.GetString(2), r.GetString(3), r.GetInt32(4),
@@ -323,12 +327,16 @@ public static class HealthQueries
     private static bool HasTable(SqliteConnection conn, string table) =>
         HealthDb.Scalar<long>(conn, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = $t;", ("$t", table)) > 0;
 
-    /// <summary>The newest alerts, newest first. A history not yet opened by a version-2 collector has none.</summary>
-    public static IReadOnlyList<AlertRow> Alerts(SqliteConnection conn, int limit)
+    /// <summary>Every alert kept: what the alert list's pager counts.</summary>
+    public static int AlertCount(SqliteConnection conn) =>
+        HasTable(conn, "alerts") ? (int)HealthDb.Scalar<long>(conn, "SELECT COUNT(*) FROM alerts;") : 0;
+
+    /// <summary>Alerts, newest first. A history not yet opened by a version-2 collector has none.</summary>
+    public static IReadOnlyList<AlertRow> Alerts(SqliteConnection conn, int limit, int offset = 0)
     {
         var rows = new List<AlertRow>();
-        if (HealthDb.Scalar<long>(conn, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'alerts';") == 0) return rows;
-        using var cmd = HealthDb.Command(conn, "SELECT utc, drive_id, kind, level, title, body FROM alerts ORDER BY id DESC LIMIT $n;", ("$n", limit));
+        if (!HasTable(conn, "alerts")) return rows;
+        using var cmd = HealthDb.Command(conn, "SELECT utc, drive_id, kind, level, title, body FROM alerts ORDER BY id DESC LIMIT $n OFFSET $o;", ("$n", limit), ("$o", offset));
         using var r = cmd.ExecuteReader();
         while (r.Read())
             rows.Add(new AlertRow(HealthDb.ParseIso(r.GetString(0)), r.IsDBNull(1) ? null : r.GetInt64(1), r.GetString(2),

@@ -5,8 +5,8 @@ namespace NandWatch.Core.Tests;
 
 /// <summary>
 /// The app's colours are Onyx's, exactly. Onyx/tokens.resolved.json is a copy
-/// of the Onyx repo's dist/tokens.resolved.json (taken at its commit bcbcb42,
-/// 2026-10-21); replace it to take a newer Onyx, and this says what moved.
+/// of the Onyx repo's dist/tokens.resolved.json (taken at its commit b4b83d4,
+/// 2026-11-16); replace it to take a newer Onyx, and this says what moved.
 /// </summary>
 public class OnyxTests
 {

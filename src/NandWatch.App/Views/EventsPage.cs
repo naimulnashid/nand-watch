@@ -18,10 +18,8 @@ public sealed record EventsData(IReadOnlyList<DriveRow> Drives, IReadOnlyDiction
 /// </summary>
 public sealed class EventsPage(PageContext ctx) : IPage
 {
-    /// <summary>Days of unsafe shutdowns shown, newest first.</summary>
-    private const int ShutdownRows = 60;
-
     private EventsData? _d;
+    private int _shutdownPage = 1;
     private DateTimeOffset _now = DateTimeOffset.UtcNow;
 
     public void Load()
@@ -99,7 +97,8 @@ public sealed class EventsPage(PageContext ctx) : IPage
         var columns = new List<Column> { new("Day"), new("Windows") };
         columns.AddRange(counted.Select(x => new Column(x.Title)));
         var table = new DataTable(columns);
-        foreach (var day in d.Shutdowns.Take(ShutdownRows))
+        _shutdownPage = Pages.Clamp(_shutdownPage, Pages.Count(d.Shutdowns.Count));
+        foreach (var day in d.Shutdowns.Skip((_shutdownPage - 1) * Pages.PageSize).Take(Pages.PageSize))
         {
             var cells = new List<UIElement?>
             {
@@ -109,9 +108,16 @@ public sealed class EventsPage(PageContext ctx) : IPage
             cells.AddRange(counted.Select(x => (UIElement?)DataTable.Cell(day.Drives.TryGetValue(x.Id, out var n) ? "+" + Format.Count(n) : "–", day.Drives.ContainsKey(x.Id) ? null : Palette.TextFaintBrush)));
             table.AddRow(cells);
         }
-        var body = new StackPanel { Spacing = 12 };
-        body.Children.Add(table.Build());
-        if (d.Shutdowns.Count > ShutdownRows) body.Children.Add(Parts.Note($"The newest {ShutdownRows} days of {d.Shutdowns.Count}."));
+        // Newest first, so the pager's ends read Newest and Oldest.
+        var pager = new Pager(_shutdownPage, d.Shutdowns.Count, "days", PageOrder.Time);
+        pager.PageChanged += to =>
+        {
+            _shutdownPage = to;
+            ctx.Redraw();
+        };
+        var body = new StackPanel();
+        body.Children.Add(table.BuildAbovePager());
+        body.Children.Add(pager);
         return Ui.Panel("Unsafe shutdowns", subtitle, null, body);
     }
 }

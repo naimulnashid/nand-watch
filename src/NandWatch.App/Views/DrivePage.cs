@@ -37,6 +37,8 @@ public sealed class DrivePage(PageContext ctx, long driveId) : IPage
     private DateTimeOffset _now = DateTimeOffset.UtcNow;
     private DateTimeOffset? _first;
 
+    public Route Back { get; } = new(PageKind.Overview);
+
     public void Load()
     {
         _now = DateTimeOffset.UtcNow;
@@ -85,7 +87,7 @@ public sealed class DrivePage(PageContext ctx, long driveId) : IPage
         var d = _d!;
         var s = d.Summary;
         var page = new StackPanel();
-        var back = Ui.Link("← Overview", () => ctx.Navigate(new Route(PageKind.Overview)));
+        var back = Ui.Link("← Overview", () => ctx.Navigate(Back));
         back.Margin = new Thickness(0, 0, 0, 10);
         var letters = string.Join(" ", s.Volumes.Select(v => v.Letter));
         var model = s.Drive.Title == s.Drive.Model.Trim() ? "" : s.Drive.Model.Trim();

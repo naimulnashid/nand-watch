@@ -33,7 +33,8 @@ public static class Placeholder
 
     public static SyncData Sync(DateTimeOffset now) => new(
         new HistorySummary(1000, 500, now.AddDays(-30), now, now),
-        Enumerable.Range(0, 8).Select(i => new RunRow(i, now.AddHours(-i), "scheduled", "ok", 2, null, 100, null)).ToList(),
+        Enumerable.Range(0, 25).Select(i => new RunRow(i, now.AddHours(-i), "scheduled", "ok", 2, null, 100, null)).ToList(),
         [],
-        @"D:\Example\nand-watch");
+        @"D:\Example\nand-watch",
+        RunTotal: 500);
 }

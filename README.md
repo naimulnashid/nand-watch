@@ -154,7 +154,7 @@ requests.
 Open **NAND Watch** from the Start menu. It reads the drives when it opens;
 **Sync now** reads them again and writes the backup. **Charts and history**
 on a drive's panel opens its page of charts. The settings menu (the gear) has
-the theme, zoom, notifications, the optional tray and start at sign-in, and
+the theme, zoom, notifications, the optional tray and start at login, and
 the data and log folders. The tray icon, when it is on, is a small process of
 its own; the window is another, which ends when it closes and gives its
 memory back.

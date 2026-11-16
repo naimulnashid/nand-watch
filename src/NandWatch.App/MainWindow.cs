@@ -11,6 +11,7 @@ using NandWatch.App.State;
 using NandWatch.App.Theme;
 using NandWatch.App.Views;
 using NandWatch.Core;
+using NandWatch.Core.View;
 using Windows.Graphics;
 
 namespace NandWatch.App;
@@ -111,8 +112,10 @@ public sealed class MainWindow : Window
     private void SetTheme(string choice)
     {
         _settings.Theme = choice;
-        _settings.Save();
+        UiSettings.Change(s => s.Theme = choice);
         Palette.Apply(ResolveTheme(choice));
+        // The tray's menu follows the app's theme.
+        TrayLink.Send("settings");
     }
 
     /// <summary>
@@ -238,7 +241,8 @@ public sealed class MainWindow : Window
         _topBar = BuildTopBar();
         main.Children.Add(_topBar);
 
-        var column = new StackPanel { MaxWidth = 1320 + 80, Padding = new Thickness(40, 48, 40, 40) };
+        // content-max counts the gutters (rulebook: ui, "Layout").
+        var column = new StackPanel { MaxWidth = OnyxMetrics.ContentMax, Padding = new Thickness(OnyxMetrics.GutterPage, 48, OnyxMetrics.GutterPage, 40) };
         column.Children.Add(_pageHost);
         column.Children.Add(Footer());
         // The frame is pinned to the viewport's width and the column centres in
@@ -269,6 +273,25 @@ public sealed class MainWindow : Window
             _ = _state.ReloadAsync();
         };
         Root.KeyboardAccelerators.Add(f5);
+
+        // Backspace follows the page's "←" link, as a browser's once did. A
+        // KeyDown handler rather than an accelerator, and never while a text
+        // field has focus, so the pager's page box still deletes. The siblings' handler.
+        Root.KeyDown += (_, e) =>
+        {
+            if (e.Key != global::Windows.System.VirtualKey.Back || _page?.Back is not { } back) return;
+            if (FocusManager.GetFocusedElement(Root.XamlRoot) is TextBox or PasswordBox or RichEditBox or NumberBox or AutoSuggestBox) return;
+            e.Handled = true;
+            Navigate(back);
+        };
+        var altLeft = new KeyboardAccelerator { Key = global::Windows.System.VirtualKey.Left, Modifiers = global::Windows.System.VirtualKeyModifiers.Menu };
+        altLeft.Invoked += (_, e) =>
+        {
+            if (_page?.Back is not { } back) return;
+            e.Handled = true;
+            Navigate(back);
+        };
+        Root.KeyboardAccelerators.Add(altLeft);
 
         // Page zoom, with a browser's keys: Ctrl with =/+ (and Shift, which "+"
         // needs on most layouts), the numpad's + and -, and 0 to reset.
@@ -319,7 +342,7 @@ public sealed class MainWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.Children.Add(Ui.Text("Local only · no telemetry, no outbound requests · reads drives, never writes to them", 13, 400, Palette.TextFaintBrush));
-        var right = Ui.Text($"© 2026 Naimul Nashid · v{typeof(MainWindow).Assembly.GetName().Version?.ToString(3)}", 13, 400, Palette.TextFaintBrush);
+        var right = Ui.Text($"© {DateTime.Now.Year} Naimul Nashid · v{typeof(MainWindow).Assembly.GetName().Version?.ToString(3)}", 13, 400, Palette.TextFaintBrush);
         Grid.SetColumn(right, 1);
         grid.Children.Add(right);
         return new Border
@@ -371,7 +394,8 @@ public sealed class MainWindow : Window
             MinHeight = 61,
             BorderBrush = Palette.BorderBrush,
             BorderThickness = new Thickness(0, 1, 0, 1),
-            Background = Palette.BgBrush,
+            // topbar-bg, not the canvas: on the light page a bar of the page's own grey has no edge.
+            Background = Palette.TopBarBrush,
             Child = grid,
         };
     }
@@ -472,7 +496,7 @@ public sealed class MainWindow : Window
     {
         _zoomBox.Zoom = Zoom.Level;
         _settings.Zoom = Zoom.Level;
-        _settings.Save();
+        UiSettings.Change(s => s.Zoom = Zoom.Level);
         if (_zoomPill is null) return;
         _zoomText.Text = Zoom.Label;
         _zoomPill.Opacity = 1;
@@ -545,35 +569,41 @@ public sealed class MainWindow : Window
         flyout.Items.Add(logs);
         flyout.Items.Add(new MenuFlyoutSeparator());
         // Notifications and the tray. Collection never depends on either.
-        var notify = new ToggleMenuFlyoutItem { Text = "Show notifications", Icon = new FontIcon { Glyph = "\uEA8F" } };
+        // The same two toggles as the tray menu, in its words and its order.
+        var notify = new ToggleMenuFlyoutItem { Text = UiSettings.NotifyLabel, Icon = new FontIcon { Glyph = "\uEA8F" } };
         notify.Click += (_, _) =>
         {
-            _settings.Notify = notify.IsChecked;
-            _settings.Save();
+            var on = notify.IsChecked;
+            _settings.Notify = on;
+            UiSettings.Change(s => s.Notify = on);
+            TrayLink.Send("settings");
         };
         var tray = new ToggleMenuFlyoutItem { Text = "Keep in the tray when closed", Icon = new FontIcon { Glyph = "\uE8A0" } };
         tray.Click += (_, _) =>
         {
-            _settings.CloseToTray = tray.IsChecked;
-            _settings.Save();
+            var on = tray.IsChecked;
+            _settings.CloseToTray = on;
+            UiSettings.Change(s => s.CloseToTray = on);
             TrayChoiceChanged?.Invoke();
         };
-        var startup = new ToggleMenuFlyoutItem { Text = "Start in the tray at sign-in", Icon = new FontIcon { Glyph = "\uE768" } };
+        var startup = new ToggleMenuFlyoutItem { Text = TrayMenu.StartAtLogin, Icon = new FontIcon { Glyph = "\uE768" } };
         startup.Click += (_, _) =>
         {
             try { StartupRegistration.Set(startup.IsChecked); }
             catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException) { }
             startup.IsChecked = StartupRegistration.IsEnabled;
+            TrayLink.Send("settings");
         };
         flyout.Opening += (_, _) =>
         {
-            notify.IsChecked = _settings.Notify;
+            // From the file: the tray menu may have changed it since.
+            notify.IsChecked = _settings.Notify = UiSettings.Load().Notify;
             tray.IsChecked = _settings.CloseToTray;
             startup.IsChecked = StartupRegistration.IsEnabled;
         };
-        flyout.Items.Add(notify);
         flyout.Items.Add(tray);
         flyout.Items.Add(startup);
+        flyout.Items.Add(notify);
         flyout.Items.Add(new MenuFlyoutSeparator());
 
         var exit = new MenuFlyoutItem { Text = "Exit", Icon = new FontIcon { Glyph = "\uE7E8" } };

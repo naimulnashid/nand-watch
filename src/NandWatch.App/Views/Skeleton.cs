@@ -50,13 +50,19 @@ public static class Skeleton
         return false;
     }
 
+    /// <summary>
+    /// The bar is the border shade, as in Onyx's Skeleton.cs: the quietest that still shows on a card in
+    /// both themes. It was surface-inset, which on the dark card is one step from the card and did not show.
+    /// </summary>
+    private static Brush BarBrush => Palette.BorderBrush;
+
     private static void Walk(object? node)
     {
         switch (node)
         {
             case ChartSurface chart:
                 // A chart is a block of its own height: its shapes are data.
-                chart.Background = Palette.InsetBrush;
+                chart.Background = BarBrush;
                 chart.CornerRadius = new CornerRadius(Ui.RadiusSmall);
                 foreach (var child in chart.Children) child.Visibility = Visibility.Collapsed;
                 return;
@@ -67,8 +73,8 @@ public static class Skeleton
                 rich.Foreground = Palette.TransparentBrush;
                 return;
             case Shape shape:
-                if (shape.Fill is not null) shape.Fill = Palette.InsetBrush;
-                if (shape.Stroke is not null) shape.Stroke = Palette.InsetBrush;
+                if (shape.Fill is not null) shape.Fill = BarBrush;
+                if (shape.Stroke is not null) shape.Stroke = BarBrush;
                 return;
             case Image image:
                 image.Opacity = 0;
@@ -80,15 +86,37 @@ public static class Skeleton
                 // A filled box inside a card - a swatch, a share bar, a badge -
                 // goes neutral. Cards themselves keep their surface.
                 if (border.Background is SolidColorBrush fill && fill != Palette.SurfaceBrush && fill != Palette.BgBrush && fill.Color.A > 0)
-                    border.Background = Palette.InsetBrush;
+                    border.Background = BarBrush;
                 Walk(border.Child);
                 return;
             case Panel panel:
                 if (panel.Background is SolidColorBrush pf && pf != Palette.SurfaceBrush && pf != Palette.BgBrush && pf != Palette.TransparentBrush && pf.Color.A > 0)
-                    panel.Background = Palette.InsetBrush;
+                    panel.Background = BarBrush;
                 foreach (var child in panel.Children) Walk(child);
                 return;
+            // The next three are Onyx's (reference/winui/Skeleton.cs), for the
+            // copied pager: a chip is a neutral pill of its own size, the page
+            // box a neutral field, and a UserControl is walked into.
+            case Button button:
+                // Enabled, so the template paints these two and not its disabled
+                // colours. The control's own resources are left alone: writing a
+                // key into them here threw 0x800F0902 (Onyx, 2026-11-16).
+                button.IsEnabled = true;
+                button.Background = button.BorderBrush = BarBrush;
+                button.Opacity = 1;
+                button.IsTabStop = false;
+                if (button.Content is TextBlock label) label.Foreground = Palette.TransparentBrush;
+                else Walk(button.Content);
+                return;
+            case TextBox field:
+                field.Background = field.BorderBrush = BarBrush;
+                field.Foreground = Palette.TransparentBrush;
+                field.IsTabStop = false;
+                return;
             case ContentControl control:
+                Walk(control.Content);
+                return;
+            case UserControl control:
                 Walk(control.Content);
                 return;
             case Viewbox box:
@@ -107,7 +135,7 @@ public static class Skeleton
             text.TextHighlighters.Clear();
             var length = text.Text?.Length ?? 0;
             if (length == 0) return;
-            var highlighter = new TextHighlighter { Background = Palette.InsetBrush, Foreground = Palette.TransparentBrush };
+            var highlighter = new TextHighlighter { Background = BarBrush, Foreground = Palette.TransparentBrush };
             highlighter.Ranges.Add(new TextRange { StartIndex = 0, Length = length });
             text.TextHighlighters.Add(highlighter);
         }
