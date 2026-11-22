@@ -9,6 +9,8 @@ counters (bytes written, wear, spare blocks, temperature, errors) and turns it
 into a life estimate, a projected end date and alerts. Local only: no network
 calls, no account.
 
+> **Status:** in active development, built for my own setup. Updates can change the history database and the life estimate, so back up the data folder before updating. It needs at least one NVMe drive; SATA and USB drives are not supported yet.
+
 ## Screenshots
 
 Every figure below is invented: two "Example" drives from `nandwatch
